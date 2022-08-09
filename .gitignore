@@ -1,7 +1,2 @@
-.vscode
-.DS_Store
-proxy_pool
-__pycache__
-jzsc.xlsx
-data/
+.idea
 

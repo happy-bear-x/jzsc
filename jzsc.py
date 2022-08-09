@@ -1,3 +1,5 @@
+import os
+
 import aiohttp
 import asyncio
 import csv
@@ -9,6 +11,17 @@ import time
 
 from decrypt import AESDecrypt
 
+headers = {
+    'accessToken': 'jkFXxgu9TcpocIyCKmJ+tfpxe/45B9dbWMUXhdY7vLVhTOHUbjCc3IXPvP6vgf4lhpUUKvcMtoMqfGfwdLCb8g==',
+    'Cookie': 'Hm_lvt_b1b4b9ea61b6f1627192160766a9c55c=1658728338,1660030413; '
+              'Hm_lpvt_b1b4b9ea61b6f1627192160766a9c55c=1660030425',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                  'Chrome/86.0.4240.198 Safari/537.36 '
+}
+# 登录信息过期信息
+timeoutStr = '4bd02be856577e3e61e83b86f51afca55280b5ee9ca16beb9b2a65406045c9497c089d5e8ff97c63000f62b011a64f4019b64d9a050272bd5914634d030aab69'
+# 公司项目url
+companyProjectUrl='http://jzsc.mohurd.gov.cn/api/webApi/dataservice/query/comp/compPerformanceListSys?qy_id=002105291248690048&pg=%d&pgsz=15'
 
 class JZSC:
     """ 抓取全国建筑市场监管公共服务平台数据
@@ -22,8 +35,8 @@ class JZSC:
     proxy_url = "http://127.0.0.1:5010"
     file_header = ('企业名称', '企业法定代表人', '企业注册属地', '统一社会信用代码')
 
-    # 每页大小100条
-    pgsz = 100
+    # 每页大小只能15条
+    pgsz = 15
 
     def __init__(self, start_page=1, end_page=3838):
         """ 设置抓取的起始页和结束页 """
@@ -77,22 +90,17 @@ class JZSC:
 
         """
         # 随机睡1-300秒不等，防止并发太高，对目标网站产生过大压力
-        await asyncio.sleep(random.randint(1, 60))
+        await asyncio.sleep(random.randint(1, 50))
         while True:
-            proxy = await self.get_proxy(session)
-            try:
-                async with session.get(self.url % (page, self.pgsz), proxy=proxy, timeout=30) as response:
-                    if response.status == 200:
-                        print(f'第{page}页数据已抓取！')
-                        return (await response.text(), page)
-                    elif response.status == 401:
-                        print(f'{page} 系统繁忙。。。')
-                        await asyncio.sleep(5)
-                    else:
-                        await self.delete_proxy(session, proxy)
-            except Exception: # 代理异常
-                await self.delete_proxy(session, proxy)
-        
+            # proxy = await self.get_proxy(session)
+            async with session.get(self.url % (page, self.pgsz), timeout=30) as response:
+                if response.status == 200:
+                    print(f'第{page}页数据已抓取！')
+                    return (await response.text(), page)
+                elif response.status == 401:
+                    print(f'{page} 系统繁忙。。。')
+                    await asyncio.sleep(5)
+
     async def parse_data(self, enc_str):
         """ 解析数据
         
@@ -100,7 +108,12 @@ class JZSC:
 
         Args:
             enc_str: 响应返回的加密字符串
-
+        解密后：
+        
+        [{
+            "QY_FR_NAME":"于延鹏","QY_REGION":"370200","QY_NAME":"青岛国电蓝德环境工程有限公司","QY_REGION_NAME":"山东省-青岛市","QY_ORG_CODE":"913702007277950437",
+            "COLLECT_TIME":1622263196000,"RN":31,"QY_ID":"002105291239451342","QY_SRC_TYPE":"0","OLD_CODE":"727795043"
+         }]
         Returns:
             返回公司信息列表，公司信息格式：(企业名称, 企业法定代表人, 企业注册属地, 统一社会信用代码)
             例如：
@@ -124,38 +137,28 @@ class JZSC:
         异步抓取，并将返回值存储到指定csv文件中
 
         """
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(headers=headers) as session:
             tasks = []
-            for page in range(self.start_page, self.end_page+1):
+            for page in range(self.start_page, self.end_page + 1):
                 tasks.append(asyncio.create_task(self.request(session, page)))
-            with open(f'data/jzsc_{self.start_page}_{self.end_page}.csv', 'w') as fp:
+            with open(os.getcwd() + f'\\jzsc_{self.start_page}_{self.end_page}.csv', 'w+') as fp:
                 writer = csv.writer(fp)
                 writer.writerow(self.file_header)
                 for task in tasks:
                     enc_str, page = await task
                     items = await self.parse_data(enc_str)
-                    if not items: # 如果数据为空，说明抓取错误，则重新抓取
+                    if not items:  # 如果数据为空，说明抓取错误，则重新抓取
                         tasks.append(asyncio.create_task(self.request(session, page)))
                     for item in items:
                         writer.writerow(item)
 
-    async def get_proxy(self, session):
-        async with session.get(f"{self.proxy_url}/get") as response:
-            while True:
-                try:
-                    return json.loads(await response.text())['proxy']
-                except KeyError: # 代理池没可用代理时，睡一分钟后重试
-                    await asyncio.sleep(60)
-    
-    async def delete_proxy(self, session, proxy):
-        async with session.get(f"{self.proxy_url}/delete?proxy={proxy}"): return
-
 
 if __name__ == '__main__':
+    header = {}
     # 分批抓取，每次抓取100页
     page = 1
-    while page < 3839:
-        jzsc = JZSC(page, page+99)
+    while page < 2:
+        jzsc = JZSC(page, page + 1)
         asyncio.run(jzsc.fetch())
         page += 100
         time.sleep(10)
