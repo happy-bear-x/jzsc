@@ -14,8 +14,8 @@ class AESDecrypt:
         :return:
         """
         length = len(text)
-        unpadding = ord(text[length-1])
-        return text[0:length-unpadding]
+        unpadding = ord(text[length - 1])
+        return text[0:length - unpadding]
 
     @classmethod
     def decrypt(cls, content):
@@ -31,3 +31,9 @@ class AESDecrypt:
         result = str(decrypt_bytes, encoding='utf-8')
         result = cls._pkcs7unpadding(result)
         return result
+
+
+if __name__ == '__main__':
+    en_str = '95780ba0943730051dccb5fe3918f9fe71259a58aaeb83a18709429b26fca283a56bfdae74d48de952e0b4a1bbbf6d063273905d5346048f12a2555671f3245203b7cc4b59bf9dd69d317755f3e01d3541710af45a9cb1ec72131c0fe756fca5'
+    de = AESDecrypt.decrypt(en_str)
+    print(de)

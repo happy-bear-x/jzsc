@@ -1,20 +1,17 @@
-import os
-
-import aiohttp
 import asyncio
 import csv
 import json
+import os
 import random
-import re
-import requests
 import time
 
-from decrypt import AESDecrypt
+import aiohttp
+import requests
 
+from decrypt import AESDecrypt
+# header需要accessToken和userAgent
 headers = {
     'accessToken': 'jkFXxgu9TcpocIyCKmJ+tfpxe/45B9dbWMUXhdY7vLVhTOHUbjCc3IXPvP6vgf4lhpUUKvcMtoMqfGfwdLCb8g==',
-    'Cookie': 'Hm_lvt_b1b4b9ea61b6f1627192160766a9c55c=1658728338,1660030413; '
-              'Hm_lpvt_b1b4b9ea61b6f1627192160766a9c55c=1660030425',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) '
                   'Chrome/86.0.4240.198 Safari/537.36 '
 }
@@ -23,6 +20,10 @@ timeoutStr = '4bd02be856577e3e61e83b86f51afca55280b5ee9ca16beb9b2a65406045c9497c
 # 公司项目url
 companyProjectUrl='http://jzsc.mohurd.gov.cn/api/webApi/dataservice/query/comp/compPerformanceListSys?qy_id=002105291248690048&pg=%d&pgsz=15'
 
+# 公司项目总数 {"code":200,"data":{"proTotal":"45","ryTotal":"1","aptTotal":"1"},"message":"","success":true}
+companyTotalProUrl = 'http://jzsc.mohurd.gov.cn/api/webApi/dataservice/query/comp/getTotal?qyId=002105291239451473&qyCode=911501007794541363'
+# 地区url
+regionUrl = 'http://jzsc.mohurd.gov.cn/api/webApi/asite/region/index'
 class JZSC:
     """ 抓取全国建筑市场监管公共服务平台数据
         
